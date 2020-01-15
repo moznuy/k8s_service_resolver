@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="k8s_service_resolver",  # Replace with your own username
-    version="0.0.1",
+    version="0.0.2",
     author="Serhii Charykov",
     author_email="serhii.charykov@gmail.com",
     description="A small example package",
@@ -18,4 +18,7 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
     ],
     python_requires='>=3.6',
+    install_requires=[
+        'pycares>=3',
+    ]
 )
