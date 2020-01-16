@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="k8s_service_resolver",  # Replace with your own username
-    version="0.0.2",
+    version="0.0.3",
     author="Serhii Charykov",
     author_email="serhii.charykov@gmail.com",
     description="A small example package",

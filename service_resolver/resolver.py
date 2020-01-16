@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import logging
+import operator
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -11,6 +12,7 @@ from typing import (
 import pycares
 
 from . import exceptions
+from .cache import TTLCache, acachedmethod
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +30,18 @@ class DNSResolver:
     SRV = pycares.QUERY_TYPE_SRV
     SOCKET_BAD = pycares.ARES_SOCKET_BAD
 
-    def __init__(self, include_domains: bool = True, loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
+    def __init__(
+            self,
+            maxsize: int = 32,
+            ttl: int = 30,
+            include_domains: bool = True,
+            loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
         self._channel = pycares.Channel(sock_state_cb=self._sock_state_cb)
         self._timer: Optional[asyncio.TimerHandle] = None
         self._fds: Set[int] = set()
         self._include_domains = include_domains
         self.loop = loop or asyncio.get_event_loop()
+        self.cache = TTLCache(maxsize=maxsize, ttl=ttl)
 
     @staticmethod
     def _callback(fut: asyncio.Future, result: Any, error_no: int) -> None:
@@ -57,6 +65,7 @@ class DNSResolver:
         self._channel.query(query, _type, cb)
         return fut
 
+    @acachedmethod(operator.attrgetter('cache'))
     async def resolve(self, host: str, protocol: str, service: str) -> Tuple[str, int]:
         requests: List[Request] = [
             Request(self.A, host),
