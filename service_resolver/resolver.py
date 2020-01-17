@@ -40,8 +40,8 @@ class DNSResolver:
         self._timer: Optional[asyncio.TimerHandle] = None
         self._fds: Set[int] = set()
         self._include_domains = include_domains
+        self._cache = TTLCache(maxsize=maxsize, ttl=ttl)
         self.loop = loop or asyncio.get_event_loop()
-        self.cache = TTLCache(maxsize=maxsize, ttl=ttl)
 
     @staticmethod
     def _callback(fut: asyncio.Future, result: Any, error_no: int) -> None:
@@ -65,7 +65,7 @@ class DNSResolver:
         self._channel.query(query, _type, cb)
         return fut
 
-    @acachedmethod(operator.attrgetter('cache'))
+    @acachedmethod(get_cache=operator.attrgetter('_cache'))
     async def resolve(self, host: str, protocol: str, service: str) -> Tuple[str, int]:
         requests: List[Request] = [
             Request(self.A, host),
@@ -113,4 +113,3 @@ class DNSResolver:
     def _timer_cb(self):
         self._channel.process_fd(self.SOCKET_BAD, self.SOCKET_BAD)
         self._timer = self.loop.call_later(1.0, self._timer_cb)
-

@@ -1,5 +1,5 @@
 # TODO: Just add PR to https://github.com/tkem/cachetools/ with asyncio decorator support
-
+import asyncio
 import functools
 import collections
 import time
@@ -382,22 +382,42 @@ def hashkey(*args, **kwargs):
         return _HashedTuple(args)
 
 
-def acachedmethod(cache, key=hashkey, lock=None):
+def acachedmethod(get_cache, get_key=hashkey, get_lock=None):
     """Decorator to wrap a class or instance method with a memoizing
     callable that saves results in a cache.
+    get_cache can be coroutine or not
+    get_key can be coroutine or not
+    get_lock can be coroutine or not or None
+
+    get_lock must return lock compatible with asyncio protocol:
+        async with lock:
     """
+    cache_is_coroutine = asyncio.iscoroutinefunction(get_cache)
+    key_is_coroutine = asyncio.iscoroutinefunction(get_key)
+    lock_is_coroutine = asyncio.iscoroutinefunction(get_lock)
+
     def decorator(method):
-        if lock is None:
+        method_is_coroutine = asyncio.iscoroutinefunction(method)
+
+        if get_lock is None:
             async def wrapper(self, *args, **kwargs):
-                c = cache(self)
+                c = await get_cache(self) \
+                    if cache_is_coroutine \
+                    else get_cache(self)
                 if c is None:
-                    return await method(self, *args, **kwargs)
-                k = key(*args, **kwargs)
+                    return await method(self, *args, **kwargs) \
+                        if method_is_coroutine \
+                        else method(self, *args, **kwargs)
+                k = await get_key(*args, **kwargs) \
+                    if key_is_coroutine \
+                    else get_key(*args, **kwargs)
                 try:
                     return c[k]
                 except KeyError:
                     pass  # key not found
-                v = await method(self, *args, **kwargs)
+                v = await method(self, *args, **kwargs) \
+                    if method_is_coroutine else \
+                    method(self, *args, **kwargs)
                 try:
                     c[k] = v
                 except ValueError:
@@ -405,18 +425,27 @@ def acachedmethod(cache, key=hashkey, lock=None):
                 return v
         else:
             async def wrapper(self, *args, **kwargs):
-                c = cache(self)
+                lock = await get_lock(self) if lock_is_coroutine else get_lock(self)
+                c = await get_cache(self) \
+                    if cache_is_coroutine \
+                    else get_cache(self)
                 if c is None:
-                    return await method(self, *args, **kwargs)
-                k = key(*args, **kwargs)
+                    return await method(self, *args, **kwargs) \
+                        if method_is_coroutine \
+                        else method(self, *args, **kwargs)
+                k = await get_key(*args, **kwargs) \
+                    if key_is_coroutine \
+                    else get_key(*args, **kwargs)
                 try:
-                    with lock(self):
+                    async with lock:
                         return c[k]
                 except KeyError:
                     pass  # key not found
-                v = await method(self, *args, **kwargs)
+                v = await method(self, *args, **kwargs) \
+                    if method_is_coroutine \
+                    else method(self, *args, **kwargs)
                 try:
-                    with lock(self):
+                    async with lock:
                         c[k] = v
                 except ValueError:
                     pass  # value too large
