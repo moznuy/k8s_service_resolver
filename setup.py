@@ -4,11 +4,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="k8s_service_resolver",  # Replace with your own username
-    version="0.1",
+    name="k8s_service_resolver",
+    version="0.1.1",
     author="Serhii Charykov",
     author_email="serhii.charykov@gmail.com",
-    description="A small example package",
+    description="Domain name + port resolver for Kubernetes Services with TTL cache",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/moznuy/k8s_service_resolver",
@@ -19,6 +19,6 @@ setuptools.setup(
     ],
     python_requires='>=3.6',
     install_requires=[
-        'pycares>=3',
+        'pycares>=3,<4',
     ]
 )
